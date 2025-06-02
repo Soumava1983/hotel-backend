@@ -1,0 +1,50 @@
+[
+    {
+        "name": "Standard Room",
+        "location": "Los Angeles",
+        "price": 90,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Standard+Room",
+        "amenities": ["Wi-Fi", "TV"]
+    },
+    {
+        "name": "Standard Room",
+        "location": "Los Angeles",
+        "price": 90,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Standard+Room",
+        "amenities": ["Wi-Fi", "TV"]
+    },
+    {
+        "name": "Standard Room",
+        "location": "Los Angeles",
+        "price": 90,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Standard+Room",
+        "amenities": ["Wi-Fi", "TV"]
+    },
+    {
+        "name": "Deluxe Room",
+        "location": "New York",
+        "price": 120,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Deluxe+Room",
+        "amenities": ["Wi-Fi", "TV", "AC"]
+    },
+    {
+        "name": "Suite",
+        "location": "Chicago",
+        "price": 200,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Suite",
+        "amenities": ["Wi-Fi", "TV", "Minibar"]
+    },
+    {
+        "name": "Standard Room",
+        "location": "Miami",
+        "price": 80,
+        "available": true,
+        "image": "https://via.placeholder.com/300x180?text=Standard+Room",
+        "amenities": ["Wi-Fi"]
+    }
+]
