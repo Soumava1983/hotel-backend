@@ -9,128 +9,142 @@ const app = express();
 const PORT = 3000;
 const JWT_SECRET = "your_jwt_secret"; // Replace with a secure secret
 
-// SQLite database setup
-const db = new sqlite3.Database("./hotel.db", (err) => {
-    if (err) {
-        console.error("Error connecting to SQLite database:", err.message);
-    } else {
-        console.log("Connected to SQLite database");
-    }
-});
+const fs = require('fs');
 
-// CORS configuration
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // Allow requests from any origin (for testing)
-            // In production, you should specify allowed origins explicitly
-            callback(null, origin || "*");
-        },
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        credentials: true // Allow credentials (cookies, authorization headers, etc.)
-    })
-);
-
-// Middleware to parse JSON bodies
+// Middleware to parse JSON requests
 app.use(express.json());
 
-// Serve static files (images)
-app.use(express.static(path.join(__dirname, "public")));
+// Enable CORS for the frontend
+app.use(cors({
+    origin: 'https://hotel-frontend-r9xx.onrender.com' // Replace with your frontend URL
+}));
 
-// Create tables if they don't exist
+// Initialize the database
+const dbPath = './hotel.db';
+let dbExists = fs.existsSync(dbPath);
+const db = new sqlite3.Database(dbPath, (err) => {
+    if (err) {
+        console.error('Error connecting to SQLite database:', err);
+        return;
+    }
+    console.log('Connected to SQLite database');
+});
+
+// Create tables and seed data if the database is newly created
 db.serialize(() => {
-    db.run(
-        `CREATE TABLE IF NOT EXISTS users (
+    // Create Users table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS Users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL
-        )`,
-        (err) => {
-            if (err) console.error("Error creating users table:", err.message);
-            else console.log("Users table created or already exists");
-        }
-    );
+        )
+    `);
 
-    db.run(
-        `CREATE TABLE IF NOT EXISTS rooms (
+    // Create Rooms table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS Rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             hotel_name TEXT NOT NULL,
             location TEXT NOT NULL,
             name TEXT NOT NULL,
-            price INTEGER NOT NULL,
+            price REAL NOT NULL,
             available INTEGER NOT NULL,
             image TEXT NOT NULL,
             amenities TEXT NOT NULL
-        )`,
-        (err) => {
-            if (err) console.error("Error creating rooms table:", err.message);
-            else console.log("Rooms table created or already exists");
-        }
-    );
+        )
+    `);
 
-    db.run(
-        `CREATE TABLE IF NOT EXISTS bookings (
+    // Create Bookings table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS Bookings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER NOT NULL,
-            roomId INTEGER NOT NULL,
-            checkIn TEXT NOT NULL,
-            checkOut TEXT NOT NULL,
-            bookingDate TEXT NOT NULL,
-            roomCount INTEGER NOT NULL,
-            total INTEGER NOT NULL,
-            FOREIGN KEY (userId) REFERENCES users(id),
-            FOREIGN KEY (roomId) REFERENCES rooms(id)
-        )`,
-        (err) => {
-            if (err) console.error("Error creating bookings table:", err.message);
-            else console.log("Bookings table created or already exists");
-        }
-    );
+            user_id INTEGER NOT NULL,
+            room_id INTEGER NOT NULL,
+            check_in TEXT NOT NULL,
+            check_out TEXT NOT NULL,
+            total_price REAL NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES Users(id),
+            FOREIGN KEY (room_id) REFERENCES Rooms(id)
+        )
+    `);
 
-    // Seed rooms if the table is empty
-    db.get("SELECT COUNT(*) as count FROM rooms", (err, row) => {
-        if (err) {
-            console.error("Error checking rooms table:", err.message);
-            return;
-        }
-        if (row.count === 0) {
-            const rooms = [
-                // Your room data here (same as before)
-                { hotel_name: "Hotel Sea View", location: "Puri", name: "Standard Room", price: 1500, available: 5, image: "/images/Puri/Hotel Sea View/room_standard.jpg", amenities: JSON.stringify(["Wi-Fi", "TV", "AC"]) },
-                // ... other rooms ...
-            ];
-            const stmt = db.prepare("INSERT INTO rooms (hotel_name, location, name, price, available, image, amenities) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            rooms.forEach((room) => {
-                stmt.run(room.hotel_name, room.location, room.name, room.price, room.available, room.image, room.amenities);
+    // Seed data if the database was just created
+    if (!dbExists) {
+        console.log('Database created, seeding initial data...');
+
+        // Seed default user (test@example.com / password123)
+        const defaultUserStmt = db.prepare('INSERT INTO Users (email, password) VALUES (?, ?)');
+        defaultUserStmt.run('test@example.com', 'password123');
+        defaultUserStmt.finalize();
+
+        // Seed rooms from rooms.json
+        if (fs.existsSync('./rooms.json')) {
+            const roomsData = JSON.parse(fs.readFileSync('./rooms.json'));
+            console.log(`Attempting to seed ${roomsData.length} rooms from rooms.json`);
+            const roomStmt = db.prepare('INSERT INTO Rooms (hotel_name, location, name, price, available, image, amenities) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            let insertedRooms = 0;
+            roomsData.forEach((room, index) => {
+                // Validate required fields
+                if (!room.hotel_name || room.hotel_name === '') {
+                    console.error(`Error: Room at index ${index} is missing hotel_name`);
+                    return;
+                }
+                if (!room.location || room.location === '') {
+                    console.error(`Error: Room at index ${index} is missing location`);
+                    return;
+                }
+                if (!room.name || room.name === '') {
+                    console.error(`Error: Room at index ${index} is missing name`);
+                    return;
+                }
+                if (room.price == null) {
+                    console.error(`Error: Room at index ${index} is missing price`);
+                    return;
+                }
+                if (room.available == null) {
+                    console.error(`Error: Room at index ${index} is missing available`);
+                    return;
+                }
+                if (!room.image || room.image === '') {
+                    console.error(`Error: Room at index ${index} is missing image`);
+                    return;
+                }
+                if (!room.amenities) {
+                    console.warn(`Warning: Room at index ${index} is missing amenities, defaulting to empty array`);
+                    room.amenities = [];
+                }
+
+                try {
+                    roomStmt.run(
+                        room.hotel_name,
+                        room.location,
+                        room.name,
+                        room.price,
+                        room.available,
+                        room.image,
+                        JSON.stringify(room.amenities)
+                    );
+                    insertedRooms++;
+                    console.log(`Inserted room ${index + 1}: ${room.hotel_name} - ${room.name} (${room.location})`);
+                } catch (err) {
+                    console.error(`Error inserting room at index ${index}:`, err.message);
+                }
             });
-            stmt.finalize();
-            console.log("Rooms seeded");
+            roomStmt.finalize((err) => {
+                if (err) {
+                    console.error('Error finalizing room statement:', err.message);
+                } else {
+                    console.log(`Successfully seeded ${insertedRooms} rooms from rooms.json`);
+                }
+            });
         } else {
-            console.log("Rooms table already has data, skipping seeding");
+            console.warn('rooms.json not found, Rooms table will be empty');
         }
-    });
+    }
+}); // Close db.serialize block
 
-    // Seed a default user if not exists
-    const defaultEmail = "test@example.com";
-    const defaultPassword = "password123";
-    bcrypt.hash(defaultPassword, 10, (err, hash) => {
-        if (err) {
-            console.error("Error hashing default password:", err.message);
-            return;
-        }
-        db.run(
-            "INSERT OR IGNORE INTO users (email, password) VALUES (?, ?)",
-            [defaultEmail, hash],
-            (err) => {
-                if (err) console.error("Error seeding default user:", err.message);
-                else console.log("Default user seeded: test@example.com");
-            }
-        );
-    });
-});
-
-// Routes (same as before)
+// Routes
 app.get("/check-session", (req, res) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
@@ -208,6 +222,7 @@ app.get("/rooms", (req, res) => {
         res.json(parsedRooms);
     });
 });
+
 app.post("/book", (req, res) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
@@ -246,7 +261,7 @@ app.post("/book", (req, res) => {
             const bookingDate = new Date().toISOString();
 
             db.run(
-                "INSERT INTO bookings (userId, roomId, checkIn, checkOut, bookingDate, roomCount, total) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO bookings (user_id, room_id, check_in, check_out, booking_date, room_count, total_price) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [decoded.userId, roomId, checkIn, checkOut, bookingDate, roomCount, total],
                 function (err) {
                     if (err) {
@@ -293,9 +308,9 @@ app.get("/bookings", (req, res) => {
         db.all(
             `SELECT bookings.*, rooms.hotel_name, rooms.location, rooms.name, rooms.amenities
              FROM bookings
-             JOIN rooms ON bookings.roomId = rooms.id
-             WHERE bookings.userId = ?
-             ORDER BY bookings.bookingDate DESC`,
+             JOIN rooms ON bookings.room_id = rooms.id
+             WHERE bookings.user_id = ?
+             ORDER BY bookings.booking_date DESC`,
             [decoded.userId],
             (err, bookings) => {
                 if (err) {
@@ -313,6 +328,7 @@ app.get("/bookings", (req, res) => {
         );
     });
 });
+
 app.post("/logout", (req, res) => {
     console.log("Logout request received");
     res.json({ message: "Logged out successfully" });
