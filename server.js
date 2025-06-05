@@ -11,13 +11,14 @@ const JWT_SECRET = "your_jwt_secret"; // Replace with a secure secret
 
 const fs = require('fs');
 
-// Middleware to parse JSON requests
-app.use(express.json());
-
 // Enable CORS for the frontend
 app.use(cors({
-    origin: 'https://hotel-frontend-r9xx.onrender.com' // Replace with your frontend URL
+    origin: 'https://hotel-frontend-r9xx.onrender.com', // Exact frontend origin
+    credentials: true // Allow credentials (cookies)
 }));
+
+// Middleware to parse JSON requests
+app.use(express.json());
 
 // Initialize the database
 const dbPath = './hotel.db';
@@ -157,6 +158,11 @@ db.serialize(() => {
         }
     }
 });
+
+app.options('*', cors({
+    origin: 'https://hotel-frontend-r9xx.onrender.com',
+    credentials: true
+}));
 
 // Routes
 app.get("/check-session", (req, res) => {
@@ -350,4 +356,14 @@ app.post("/logout", (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
+});
+
+app.get('/check-session', (req, res) => {
+    if (req.session.user) {
+        // User is logged in
+        res.json({ loggedIn: true, user: req.session.user });
+    } else {
+        // User is not logged in
+        res.json({ loggedIn: false });
+    }
 });
