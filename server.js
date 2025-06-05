@@ -11,10 +11,12 @@ const JWT_SECRET = "your_jwt_secret"; // Replace with a secure secret
 
 const fs = require('fs');
 
-// Enable CORS for the frontend
+// Enable CORS for the frontend with enhanced configuration
 app.use(cors({
     origin: 'https://hotel-frontend-r9xx.onrender.com', // Exact frontend origin
-    credentials: true // Allow credentials (cookies)
+    credentials: true, // Allow credentials (cookies)
+    methods: ['GET', 'POST', 'OPTIONS'], // Allow these methods
+    allowedHeaders: ['Content-Type', 'Authorization'] // Allow these headers
 }));
 
 // Middleware to parse JSON requests
@@ -64,6 +66,8 @@ db.serialize(() => {
             room_id INTEGER NOT NULL,
             check_in TEXT NOT NULL,
             check_out TEXT NOT NULL,
+            booking_date TEXT NOT NULL,
+            room_count INTEGER NOT NULL,
             total_price REAL NOT NULL,
             FOREIGN KEY (user_id) REFERENCES Users(id),
             FOREIGN KEY (room_id) REFERENCES Rooms(id)
@@ -158,11 +162,6 @@ db.serialize(() => {
         }
     }
 });
-
-app.options('*', cors({
-    origin: 'https://hotel-frontend-r9xx.onrender.com',
-    credentials: true
-}));
 
 // Routes
 app.get("/check-session", (req, res) => {
@@ -356,14 +355,4 @@ app.post("/logout", (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
-});
-
-app.get('/check-session', (req, res) => {
-    if (req.session.user) {
-        // User is logged in
-        res.json({ loggedIn: true, user: req.session.user });
-    } else {
-        // User is not logged in
-        res.json({ loggedIn: false });
-    }
 });
