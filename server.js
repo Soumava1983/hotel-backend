@@ -74,9 +74,23 @@ db.serialize(() => {
         console.log('Database created, seeding initial data...');
 
         // Seed default user (test@example.com / password123)
-        const defaultUserStmt = db.prepare('INSERT INTO Users (email, password) VALUES (?, ?)');
-        defaultUserStmt.run('test@example.com', 'password123');
-        defaultUserStmt.finalize();
+        console.log('Seeding default user...');
+        const saltRounds = 10;
+        bcrypt.hash('password123', saltRounds, (err, hash) => {
+            if (err) {
+                console.error('Error hashing password for default user:', err.message);
+                return;
+            }
+            const defaultUserStmt = db.prepare('INSERT INTO Users (email, password) VALUES (?, ?)');
+            defaultUserStmt.run('test@example.com', hash, (err) => {
+                if (err) {
+                    console.error('Error inserting default user:', err.message);
+                } else {
+                    console.log('Default user seeded: test@example.com');
+                }
+            });
+            defaultUserStmt.finalize();
+        });
 
         // Seed rooms from rooms.json
         if (fs.existsSync('./rooms.json')) {
@@ -142,7 +156,7 @@ db.serialize(() => {
             console.warn('rooms.json not found, Rooms table will be empty');
         }
     }
-}); // Close db.serialize block
+});
 
 // Routes
 app.get("/check-session", (req, res) => {
