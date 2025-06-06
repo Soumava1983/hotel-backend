@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const bcrypt = require("bcrypt");
@@ -5,7 +6,6 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 
-// Initialize Supabase client using CommonJS syntax
 const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = 'https://jdsziypwwtysgwvabsyp.supabase.co';
 const supabaseKey = process.env.SUPABASE_KEY;
@@ -13,11 +13,10 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const app = express();
 const PORT = 3000;
-const JWT_SECRET = "your_jwt_secret"; // Replace with a secure secret
+const JWT_SECRET = "your_jwt_secret";
 
 const fs = require('fs');
 
-// Enable CORS for the frontend with enhanced configuration
 app.use(cors({
     origin: 'https://hotel-frontend-r9xx.onrender.com',
     credentials: true,
@@ -25,10 +24,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware to parse JSON requests
 app.use(express.json());
 
-// Initialize the database
 const dbPath = './hotel.db';
 let dbExists = fs.existsSync(dbPath);
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -39,9 +36,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.log('Connected to SQLite database');
 });
 
-// Create tables and seed data if the database is newly created
 db.serialize(() => {
-    // Create Users table
     db.run(`
         CREATE TABLE IF NOT EXISTS Users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +45,6 @@ db.serialize(() => {
         )
     `);
 
-    // Create Rooms table
     db.run(`
         CREATE TABLE IF NOT EXISTS Rooms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +58,6 @@ db.serialize(() => {
         )
     `);
 
-    // Create Bookings table
     db.run(`
         CREATE TABLE IF NOT EXISTS Bookings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,11 +73,9 @@ db.serialize(() => {
         )
     `);
 
-    // Seed data if the database was just created
     if (!dbExists) {
         console.log('Database created, seeding initial data...');
 
-        // Seed default user (test@example.com / password123)
         console.log('Seeding default user...');
         const saltRounds = 10;
         bcrypt.hash('password123', saltRounds, (err, hash) => {
@@ -103,7 +94,6 @@ db.serialize(() => {
             defaultUserStmt.finalize();
         });
 
-        // Seed rooms from rooms.json
         if (fs.existsSync('./rooms.json')) {
             const roomsData = JSON.parse(fs.readFileSync('./rooms.json'));
             console.log(`Attempting to seed ${roomsData.length} rooms from rooms.json`);
@@ -168,7 +158,6 @@ db.serialize(() => {
     }
 });
 
-// Routes
 app.get("/check-session", (req, res) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
@@ -224,7 +213,7 @@ app.get('/rooms', async (req, res) => {
         const { location } = req.query;
         let query = supabase.from('rooms').select('*');
         if (location) {
-            query = query.eq('location', location);
+            query = query.ilike('location', location);
         }
         const { data, error } = await query;
         if (error) {
