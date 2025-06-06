@@ -211,19 +211,21 @@ app.post("/login", (req, res) => {
 app.get('/rooms', async (req, res) => {
     try {
         const { location } = req.query;
+        console.log(`Received request to fetch rooms with location: ${location || 'all'}`);
         let query = supabase.from('rooms').select('*');
         if (location) {
+            console.log(`Applying location filter: ${location}`);
             query = query.ilike('location', location);
         }
         const { data, error } = await query;
         if (error) {
-            console.error("Error fetching rooms from Supabase:", error.message);
+            console.error("Error fetching rooms from Supabase:", error.message, error.details);
             return res.status(500).json({ error: error.message });
         }
-        console.log(`Rooms fetched from Supabase: ${data.length} rooms found`, data);
+        console.log(`Rooms fetched from Supabase: ${data.length} rooms found`, JSON.stringify(data, null, 2));
         res.json(data);
     } catch (err) {
-        console.error("Unexpected error fetching rooms:", err.message);
+        console.error("Unexpected error fetching rooms:", err.message, err.stack);
         res.status(500).json({ error: "Internal server error" });
     }
 });
