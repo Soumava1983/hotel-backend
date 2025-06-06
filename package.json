@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "script.js",
   "dependencies": {
+    "@supabase/supabase-js": "^2.50.0",
     "abbrev": "^1.1.1",
     "accepts": "^2.0.0",
     "agent-base": "^6.0.2",
