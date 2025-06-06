@@ -5,6 +5,12 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const path = require("path");
 
+// Initialize Supabase client using CommonJS syntax
+const { createClient } = require('@supabase/supabase-js');
+const supabaseUrl = 'https://jdsziypwwtysgwvabsyp.supabase.co';
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 const app = express();
 const PORT = 3000;
 const JWT_SECRET = "your_jwt_secret"; // Replace with a secure secret
@@ -13,10 +19,10 @@ const fs = require('fs');
 
 // Enable CORS for the frontend with enhanced configuration
 app.use(cors({
-    origin: 'https://hotel-frontend-r9xx.onrender.com', // Exact frontend origin
-    credentials: true, // Allow credentials (cookies)
-    methods: ['GET', 'POST', 'OPTIONS'], // Allow these methods
-    allowedHeaders: ['Content-Type', 'Authorization'] // Allow these headers
+    origin: 'https://hotel-frontend-r9xx.onrender.com',
+    credentials: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Middleware to parse JSON requests
@@ -104,7 +110,6 @@ db.serialize(() => {
             const roomStmt = db.prepare('INSERT INTO Rooms (hotel_name, location, name, price, available, image, amenities) VALUES (?, ?, ?, ?, ?, ?, ?)');
             let insertedRooms = 0;
             roomsData.forEach((room, index) => {
-                // Validate required fields
                 if (!room.hotel_name || room.hotel_name === '') {
                     console.error(`Error: Room at index ${index} is missing hotel_name`);
                     return;
@@ -214,32 +219,24 @@ app.post("/login", (req, res) => {
     });
 });
 
-app.get("/rooms", (req, res) => {
-    const location = req.query.location || "all";
-    console.log(`Fetching rooms for location: ${location}`);
-
-    let query, params;
-    if (location === "all") {
-        query = "SELECT * FROM rooms";
-        params = [];
-    } else {
-        query = "SELECT * FROM rooms WHERE LOWER(location) = LOWER(?)";
-        params = [location];
-    }
-
-    db.all(query, params, (err, rooms) => {
-        if (err) {
-            console.error("Error fetching rooms:", err.message);
-            return res.status(500).json({ error: "Internal server error" });
+app.get('/rooms', async (req, res) => {
+    try {
+        const { location } = req.query;
+        let query = supabase.from('rooms').select('*');
+        if (location) {
+            query = query.eq('location', location);
         }
-        // Parse the amenities field for each room
-        const parsedRooms = rooms.map(room => ({
-            ...room,
-            amenities: JSON.parse(room.amenities)
-        }));
-        console.log(`Rooms fetched: ${parsedRooms.length} rooms found`, parsedRooms);
-        res.json(parsedRooms);
-    });
+        const { data, error } = await query;
+        if (error) {
+            console.error("Error fetching rooms from Supabase:", error.message);
+            return res.status(500).json({ error: error.message });
+        }
+        console.log(`Rooms fetched from Supabase: ${data.length} rooms found`, data);
+        res.json(data);
+    } catch (err) {
+        console.error("Unexpected error fetching rooms:", err.message);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 app.post("/book", (req, res) => {
@@ -336,7 +333,6 @@ app.get("/bookings", (req, res) => {
                     console.error("Error fetching bookings:", err.message);
                     return res.status(500).json({ error: "Internal server error" });
                 }
-                // Parse the amenities field for each booking
                 const parsedBookings = bookings.map(booking => ({
                     ...booking,
                     amenities: JSON.parse(booking.amenities)
