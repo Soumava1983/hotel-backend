@@ -222,23 +222,8 @@ app.get('/rooms', async (req, res) => {
             console.error("Error fetching rooms from Supabase:", error.message, error.details);
             return res.status(500).json({ error: error.message });
         }
-
-        // Transform Google Drive image URLs to direct links
-        const transformedData = data.map(room => {
-            let imageUrl = room.image;
-            // Check if the URL is a Google Drive link
-            const match = imageUrl.match(/\/file\/d\/(.+?)\/view/);
-            if (match && match[1]) {
-                imageUrl = `https://drive.google.com/uc?export=view&id=${match[1]}`;
-            }
-            return {
-                ...room,
-                image: imageUrl
-            };
-        });
-
-        console.log(`Rooms fetched from Supabase: ${transformedData.length} rooms found`, JSON.stringify(transformedData, null, 2));
-        res.json(transformedData);
+        console.log(`Rooms fetched from Supabase: ${data.length} rooms found`, JSON.stringify(data, null, 2));
+        res.json(data);
     } catch (err) {
         console.error("Unexpected error fetching rooms:", err.message, err.stack);
         res.status(500).json({ error: "Internal server error" });
